@@ -1,5 +1,6 @@
 package com.github.adrianR_Souza.Barbearia.Model;
 
+import com.github.adrianR_Souza.Barbearia.Validation.CPF;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class UsuarioEntity {
     @NotBlank//não pode ser vazio nem só espaços em branco (serve pra String)
     @Size(min = 11, max = 11)
     @Pattern(regexp = "^\\d{11}$")//padrao do cpf
+    @CPF
     @Column(unique = true, nullable = false)
     private String cpf;
 

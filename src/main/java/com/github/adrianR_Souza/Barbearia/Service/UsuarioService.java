@@ -1,6 +1,7 @@
 package com.github.adrianR_Souza.Barbearia.Service;
 
 
+import com.github.adrianR_Souza.Barbearia.Exception.AcessoNegadoException;
 import com.github.adrianR_Souza.Barbearia.Exception.RecursoNotFoundException;
 import com.github.adrianR_Souza.Barbearia.Model.Role;
 import com.github.adrianR_Souza.Barbearia.Model.UsuarioEntity;
@@ -43,16 +44,20 @@ public class UsuarioService {
         return usuarioRepository.findById(id).orElseThrow(() -> new RecursoNotFoundException("Usuário não encontrado"));
     }
 
-    public UsuarioEntity atualizar(Long id, UsuarioEntity novoUsuario){
+    public UsuarioEntity atualizar(Long id, UsuarioEntity novoUsuario, String emailLogado){
         UsuarioEntity usuarioExistente = buscarPorId(id);
+        UsuarioEntity solicitante = buscarPorEmail(emailLogado);
 
+        boolean donoDaConta = usuarioExistente.getEmail().equals(emailLogado);
+        if (!donoDaConta && solicitante.getRole() != Role.ROLE_MASTER) {
+            throw new AcessoNegadoException("Você não tem permissão para alterar esse usuário.");
+        }
 
         usuarioExistente.setNome(novoUsuario.getNome());
         usuarioExistente.setTelefone(novoUsuario.getTelefone());
         usuarioExistente.setCpf(novoUsuario.getCpf());
         usuarioExistente.setEmail(novoUsuario.getEmail());
         usuarioExistente.setSenha(passwordEncoder.encode(novoUsuario.getSenha()));
-        usuarioExistente.setRole(novoUsuario.getRole());
 
         return usuarioRepository.save(usuarioExistente);
     }

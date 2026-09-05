@@ -1,6 +1,7 @@
 package com.github.adrianR_Souza.Barbearia.Controller;
 
 
+import com.github.adrianR_Souza.Barbearia.Model.UsuarioCadastroRequest;
 import com.github.adrianR_Souza.Barbearia.Model.UsuarioEntity;
 import com.github.adrianR_Souza.Barbearia.Service.UsuarioService;
 import jakarta.validation.Valid;
@@ -22,15 +23,14 @@ public class UsuarioController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UsuarioEntity cadastrar(@Valid @RequestBody UsuarioEntity usuario) {
-        return usuarioService.cadastrar(usuario);
-
+    public UsuarioEntity cadastrar(@Valid @RequestBody UsuarioCadastroRequest request) {
+        return usuarioService.cadastrar(paraEntidade(request));
     }
 
     @PostMapping("/barbeiro")
     @ResponseStatus(HttpStatus.CREATED)
-    public UsuarioEntity cadastrarBarbeiro(@Valid @RequestBody UsuarioEntity usuario) {
-        return usuarioService.cadastrarBarbeiro(usuario);
+    public UsuarioEntity cadastrarBarbeiro(@Valid @RequestBody UsuarioCadastroRequest request) {
+        return usuarioService.cadastrarBarbeiro(paraEntidade(request));
     }
 
     @GetMapping("/{id}")
@@ -39,9 +39,19 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
+    public UsuarioEntity atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioCadastroRequest request) {
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        return usuarioService.atualizar(id, paraEntidade(request), emailLogado);
+    }
 
-    public UsuarioEntity atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioEntity usuario) {
-        return usuarioService.atualizar(id, usuario);
+    private UsuarioEntity paraEntidade(UsuarioCadastroRequest request) {
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setNome(request.getNome());
+        usuario.setEmail(request.getEmail());
+        usuario.setCpf(request.getCpf());
+        usuario.setTelefone(request.getTelefone());
+        usuario.setSenha(request.getSenha());
+        return usuario;
     }
 
     @GetMapping("/barbeiros")

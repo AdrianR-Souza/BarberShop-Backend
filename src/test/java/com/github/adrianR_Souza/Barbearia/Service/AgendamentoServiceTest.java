@@ -22,7 +22,9 @@ import com.github.adrianR_Souza.Barbearia.Model.RelatorioServicosResponse;
 import com.github.adrianR_Souza.Barbearia.Model.ResumoServico;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -56,8 +58,8 @@ class AgendamentoServiceTest {
 
     private ServicoEntity servicoCorte;
 
-    private static final LocalDate TERCA = LocalDate.of(2026, 9, 1);
-    private static final LocalDate DOMINGO = LocalDate.of(2026, 8, 30);
+    private static final LocalDate TERCA = LocalDate.now().plusWeeks(1).with(TemporalAdjusters.next(DayOfWeek.TUESDAY));
+    private static final LocalDate DOMINGO = LocalDate.now().plusWeeks(1).with(TemporalAdjusters.next(DayOfWeek.SUNDAY));
 
     private UsuarioEntity cliente;
     private UsuarioEntity barbeiro;
