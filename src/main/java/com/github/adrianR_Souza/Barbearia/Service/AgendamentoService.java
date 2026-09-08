@@ -126,6 +126,8 @@ public class AgendamentoService {
         agendamento.setCliente(cliente);
         agendamento.setBarbeiro(barbeiro);
         agendamento.setServico(servico);
+        agendamento.setNomeTerceiro(request.getNomeTerceiro());
+        agendamento.setIdadeTerceiro(request.getIdadeTerceiro());
 
         agendamento.setDataHoraInicio(request.getDataHoraInicio());
 

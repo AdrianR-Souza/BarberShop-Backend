@@ -38,4 +38,9 @@ public class AgendamentoEntity {
     @NotNull
     @Enumerated(EnumType.STRING)
     private StatusAgendamento status;
+
+    //preenchidos só quando quem agenda marca horário pra outra pessoa
+    private String nomeTerceiro;
+
+    private Integer idadeTerceiro;
 }
