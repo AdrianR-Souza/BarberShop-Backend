@@ -75,7 +75,7 @@ public class UsuarioService {
     }
 
     public List<UsuarioEntity> listarBarbeiros(){
-        return usuarioRepository.findByRole(Role.ROLE_BARBEIRO);
+        return usuarioRepository.findByRoleOrAtendeComoBarbeiroTrue(Role.ROLE_BARBEIRO);
     }
 
     public UsuarioEntity buscarPorEmail(String email) {

@@ -5,6 +5,7 @@ import com.github.adrianR_Souza.Barbearia.Validation.CPF;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 
 @Data//gera o setNome automaticamente
 @Entity
@@ -49,6 +50,10 @@ public class UsuarioEntity {
     @Column(nullable = false)
     private Role role;
 
-
+    //permite que um MASTER também receba agendamentos como se fosse barbeiro,
+    //sem abrir mão dos poderes de MASTER (o sistema só tem uma role por usuário)
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean atendeComoBarbeiro;
 
 }
