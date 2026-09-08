@@ -35,7 +35,8 @@ public class UsuarioController {
 
     @GetMapping("/{id}")
     public UsuarioEntity buscarPorId(@PathVariable Long id) {
-        return usuarioService.buscarPorId(id);
+        String emailLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        return usuarioService.buscarPorId(id, emailLogado);
     }
 
     @PutMapping("/{id}")

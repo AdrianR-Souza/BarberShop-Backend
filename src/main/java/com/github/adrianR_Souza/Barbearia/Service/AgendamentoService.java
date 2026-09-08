@@ -113,9 +113,8 @@ public class AgendamentoService {
         return disponiveis;
     }
 
-    public AgendamentoEntity criarAgendamento(AgendamentoRequest request) {
-        UsuarioEntity cliente = usuarioRepository.findById(request.getClienteId())
-                .orElseThrow(() -> new RecursoNotFoundException("Cliente não encontrado"));
+    public AgendamentoEntity criarAgendamento(AgendamentoRequest request, String emailLogado) {
+        UsuarioEntity cliente = buscarUsuarioLogado(emailLogado);
 
         UsuarioEntity barbeiro = usuarioRepository.findById((request.getBarbeiroId()))
                 .orElseThrow(() -> new RecursoNotFoundException("Barbeiro não encontrado."));
@@ -137,8 +136,9 @@ public class AgendamentoService {
                 .orElseThrow(() -> new RecursoNotFoundException("Agendamento não encontrado"));
     }
 
-    public AgendamentoResumo listarAgendamentos(Long id){
+    public AgendamentoResumo listarAgendamentos(Long id, String emailLogado){
         AgendamentoEntity agendamento = buscarPorId(id);
+        validarPermissao(agendamento, emailLogado, true);
 
         return new AgendamentoResumo(
                 agendamento.getBarbeiro().getNome(),

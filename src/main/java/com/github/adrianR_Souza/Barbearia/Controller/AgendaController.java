@@ -30,7 +30,7 @@ public class AgendaController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AgendamentoEntity criar(@Valid @RequestBody AgendamentoRequest request) {
-        return agendamentoService.criarAgendamento(request);
+        return agendamentoService.criarAgendamento(request, emailLogado());
     }
 
     @GetMapping("/metodos-pagamento")
@@ -47,7 +47,7 @@ public class AgendaController {
     }
 
     @GetMapping("/{id}")
-    public AgendamentoResumo listarAgendamentoId(@PathVariable Long id){return agendamentoService.listarAgendamentos(id);}
+    public AgendamentoResumo listarAgendamentoId(@PathVariable Long id){return agendamentoService.listarAgendamentos(id, emailLogado());}
 
     @GetMapping("/agendamentos")
     public List<AgendamentoEntity> listarAllAgendamentos(){return agendamentoService.listarAllAgendamento();}

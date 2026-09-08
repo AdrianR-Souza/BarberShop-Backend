@@ -44,6 +44,18 @@ public class UsuarioService {
         return usuarioRepository.findById(id).orElseThrow(() -> new RecursoNotFoundException("Usuário não encontrado"));
     }
 
+    public UsuarioEntity buscarPorId(Long id, String emailLogado){
+        UsuarioEntity usuario = buscarPorId(id);
+        UsuarioEntity solicitante = buscarPorEmail(emailLogado);
+
+        boolean donoDaConta = usuario.getEmail().equals(emailLogado);
+        if (!donoDaConta && solicitante.getRole() != Role.ROLE_MASTER) {
+            throw new AcessoNegadoException("Você não tem permissão para ver esse usuário.");
+        }
+
+        return usuario;
+    }
+
     public UsuarioEntity atualizar(Long id, UsuarioEntity novoUsuario, String emailLogado){
         UsuarioEntity usuarioExistente = buscarPorId(id);
         UsuarioEntity solicitante = buscarPorEmail(emailLogado);

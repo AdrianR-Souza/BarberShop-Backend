@@ -1,5 +1,6 @@
 package com.github.adrianR_Souza.Barbearia.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.github.adrianR_Souza.Barbearia.Validation.CPF;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -40,6 +41,7 @@ public class UsuarioEntity {
     @NotBlank
     @Size(min = 8, max = 100)
     @Column(nullable = false)
+    @JsonIgnore
     private String senha;
 
     @NotNull
