@@ -45,7 +45,7 @@ Swagger/OpenAPI documentando toda a API (desligado em produção).
 
 Principais endpoints:
 
-Método	  Rota                      	O que faz	Quem acessa
+Método	  Rota                      	                   O que faz	Quem acessa
 POST	   /usuarios	                                     Cadastro de cliente	Público
 POST	   /usuarios/barbeiro	                             Cadastro de barbeiro	Admin
 POST	   /login	Login (devolve o access token JWT)	     Público
