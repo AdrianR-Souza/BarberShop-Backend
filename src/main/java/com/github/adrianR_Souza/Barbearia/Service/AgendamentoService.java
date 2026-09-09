@@ -31,13 +31,16 @@ public class AgendamentoService {
     private final UsuarioRepository usuarioRepository;
     private final ServicoRepository servicoRepository;
     private final HorarioFuncionamentoConfig horarioFuncionamentoConfig;
+    private final EmailService emailService;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository, UsuarioRepository usuarioRepository,
-                               ServicoRepository servicoRepository, HorarioFuncionamentoConfig horarioFuncionamentoConfig) {
+                               ServicoRepository servicoRepository, HorarioFuncionamentoConfig horarioFuncionamentoConfig,
+                               EmailService emailService) {
         this.agendamentoRepository = agendamentoRepository;
         this.servicoRepository = servicoRepository;
         this.usuarioRepository = usuarioRepository;
         this.horarioFuncionamentoConfig = horarioFuncionamentoConfig;
+        this.emailService = emailService;
     }
 
     private boolean colide(LocalDateTime inicioA, LocalDateTime fimA, LocalDateTime inicioB, LocalDateTime fimB){
@@ -131,7 +134,9 @@ public class AgendamentoService {
 
         agendamento.setDataHoraInicio(request.getDataHoraInicio());
 
-        return criar(agendamento);
+        AgendamentoEntity agendamentoCriado = criar(agendamento);
+        emailService.notificarNovoAgendamento(agendamentoCriado);
+        return agendamentoCriado;
     }
     public AgendamentoEntity buscarPorId(Long id) {
         return agendamentoRepository.findById(id)

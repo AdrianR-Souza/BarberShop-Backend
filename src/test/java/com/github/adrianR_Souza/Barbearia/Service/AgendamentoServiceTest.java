@@ -54,6 +54,9 @@ class AgendamentoServiceTest {
     @Mock
     private HorarioFuncionamentoConfig horarioFuncionamentoConfig;
 
+    @Mock
+    private EmailService emailService;
+
     private AgendamentoService service;
 
     private ServicoEntity servicoCorte;
@@ -69,7 +72,7 @@ class AgendamentoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AgendamentoService(agendamentoRepository, usuarioRepository, servicoRepository, horarioFuncionamentoConfig);
+        service = new AgendamentoService(agendamentoRepository, usuarioRepository, servicoRepository, horarioFuncionamentoConfig, emailService);
 
         servicoCorte = new ServicoEntity();
         servicoCorte.setId(1L);
