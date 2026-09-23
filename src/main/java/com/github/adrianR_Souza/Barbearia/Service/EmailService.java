@@ -105,15 +105,19 @@ public class EmailService {
                     "htmlContent", corpoHtml
             );
 
+            String corpoJson = objectMapper.writeValueAsString(payload);
+            log.info("[debug-temp] payload enviado pro Brevo: {}", corpoJson);
+
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(URL_BREVO))
                     .header("api-key", apiKey)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .POST(HttpRequest.BodyPublishers.ofString(corpoJson))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("[debug-temp] resposta do Brevo (status {}): {}", response.statusCode(), response.body());
 
             if (response.statusCode() >= 300) {
                 log.warn("Falha ao enviar e-mail via Brevo (status {}) pro agendamento {}: {}",
