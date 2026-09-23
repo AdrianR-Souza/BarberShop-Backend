@@ -208,7 +208,9 @@ public class AgendamentoService {
         validarPermissao(agendamentos, emailLogado, false);
 
         agendamentos.setStatus(StatusAgendamento.CONFIRMADO);
-        return agendamentoRepository.save(agendamentos);
+        AgendamentoEntity agendamentoConfirmado = agendamentoRepository.save(agendamentos);
+        emailService.notificarAgendamentoConfirmado(agendamentoConfirmado);
+        return agendamentoConfirmado;
     }
 
     public AgendamentoEntity altStatusConcluido(Long id, String emailLogado) {

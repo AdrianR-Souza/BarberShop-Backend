@@ -40,36 +40,65 @@ public class EmailService {
 
     @Async
     public void notificarNovoAgendamento(AgendamentoEntity agendamento) {
+        String nomeAtendido = agendamento.getNomeTerceiro() != null
+                ? agendamento.getNomeTerceiro()
+                : agendamento.getCliente().getNome();
+
+        String corpo = """
+                <p>Você tem um novo agendamento!</p>
+                <p><b>Cliente:</b> %s<br>
+                <b>Serviço:</b> %s<br>
+                <b>Data e hora:</b> %s<br>
+                <b>Marcado por:</b> %s (telefone: %s)</p>
+                <p>Acesse o painel do barbeiro pra confirmar.</p>
+                """.formatted(
+                nomeAtendido,
+                agendamento.getServico().getNomeServico(),
+                agendamento.getDataHoraInicio().format(FORMATO_DATA),
+                agendamento.getCliente().getNome(),
+                agendamento.getCliente().getTelefone()
+        );
+
+        enviar(agendamento.getBarbeiro().getEmail(), agendamento.getBarbeiro().getNome(),
+                "Novo agendamento - Barber Trindade", corpo, agendamento.getId());
+    }
+
+    @Async
+    public void notificarAgendamentoConfirmado(AgendamentoEntity agendamento) {
+        String nomeAtendido = agendamento.getNomeTerceiro() != null
+                ? agendamento.getNomeTerceiro()
+                : agendamento.getCliente().getNome();
+
+        String corpo = """
+                <p>Seu agendamento foi confirmado!</p>
+                <p><b>Atendido:</b> %s<br>
+                <b>Serviço:</b> %s<br>
+                <b>Data e hora:</b> %s<br>
+                <b>Barbeiro:</b> %s</p>
+                <p>Te esperamos na Barber Trindade!</p>
+                """.formatted(
+                nomeAtendido,
+                agendamento.getServico().getNomeServico(),
+                agendamento.getDataHoraInicio().format(FORMATO_DATA),
+                agendamento.getBarbeiro().getNome()
+        );
+
+        enviar(agendamento.getCliente().getEmail(), agendamento.getCliente().getNome(),
+                "Agendamento confirmado - Barber Trindade", corpo, agendamento.getId());
+    }
+
+    private void enviar(String destinatarioEmail, String destinatarioNome, String assunto, String corpoHtml, Long agendamentoId) {
         if (apiKey == null || apiKey.isBlank() || remetenteEmail == null || remetenteEmail.isBlank()) {
             log.warn("Envio de e-mail não configurado (falta BREVO_API_KEY ou BREVO_REMETENTE_EMAIL) -- notificação pulada.");
             return;
         }
 
         try {
-            String nomeAtendido = agendamento.getNomeTerceiro() != null
-                    ? agendamento.getNomeTerceiro()
-                    : agendamento.getCliente().getNome();
-
-            String corpo = """
-                    <p>Você tem um novo agendamento!</p>
-                    <p><b>Cliente:</b> %s<br>
-                    <b>Serviço:</b> %s<br>
-                    <b>Data e hora:</b> %s<br>
-                    <b>Marcado por:</b> %s (telefone: %s)</p>
-                    <p>Acesse o painel do barbeiro pra confirmar.</p>
-                    """.formatted(
-                    nomeAtendido,
-                    agendamento.getServico().getNomeServico(),
-                    agendamento.getDataHoraInicio().format(FORMATO_DATA),
-                    agendamento.getCliente().getNome(),
-                    agendamento.getCliente().getTelefone()
-            );
-
             Map<String, Object> payload = Map.of(
                     "sender", Map.of("name", remetenteNome, "email", remetenteEmail),
-                    "to", List.of(Map.of("email", agendamento.getBarbeiro().getEmail(), "name", agendamento.getBarbeiro().getNome())),
-                    "subject", "Novo agendamento - Barber Trindade",
-                    "htmlContent", corpo
+                    "to", List.of(Map.of("email", destinatarioEmail, "name", destinatarioNome)),
+                    "subject", assunto,
+                    "htmlContent", corpoHtml
             );
 
             HttpRequest request = HttpRequest.newBuilder()
@@ -84,10 +113,10 @@ public class EmailService {
 
             if (response.statusCode() >= 300) {
                 log.warn("Falha ao enviar e-mail via Brevo (status {}) pro agendamento {}: {}",
-                        response.statusCode(), agendamento.getId(), response.body());
+                        response.statusCode(), agendamentoId, response.body());
             }
         } catch (Exception e) {
-            log.warn("Não foi possível enviar o e-mail de notificação do agendamento {}: {}", agendamento.getId(), e.getMessage());
+            log.warn("Não foi possível enviar o e-mail de notificação do agendamento {}: {}", agendamentoId, e.getMessage());
         }
     }
 }
