@@ -38,6 +38,9 @@ public class EmailService {
     @Value("${brevo.remetente-nome:Barber Trindade}")
     private String remetenteNome;
 
+    @Value("${app.frontend-url:https://barbeariatrindade.vercel.app}")
+    private String frontendUrl;
+
     @Async
     public void notificarNovoAgendamento(AgendamentoEntity agendamento) {
         String nomeAtendido = agendamento.getNomeTerceiro() != null
@@ -50,13 +53,14 @@ public class EmailService {
                 <b>Serviço:</b> %s<br>
                 <b>Data e hora:</b> %s<br>
                 <b>Marcado por:</b> %s (telefone: %s)</p>
-                <p>Acesse o painel do barbeiro pra confirmar.</p>
+                <p><a href="%s/painel-barbeiro">Acesse o painel do barbeiro pra confirmar</a>.</p>
                 """.formatted(
                 nomeAtendido,
                 agendamento.getServico().getNomeServico(),
                 agendamento.getDataHoraInicio().format(FORMATO_DATA),
                 agendamento.getCliente().getNome(),
-                agendamento.getCliente().getTelefone()
+                agendamento.getCliente().getTelefone(),
+                frontendUrl
         );
 
         enviar(agendamento.getBarbeiro().getEmail(), agendamento.getBarbeiro().getNome(),
