@@ -65,4 +65,12 @@ public class ArgumentNotValidException {
         erro.put("mensagem", ex.getMessage());
         return erro;
     }
+
+    @ExceptionHandler(HorarioIndisponivelException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> tratarHorarioIndisponivel(HorarioIndisponivelException ex) {
+        Map<String, String> erro = new HashMap<>();
+        erro.put("mensagem", ex.getMessage());
+        return erro;
+    }
 }

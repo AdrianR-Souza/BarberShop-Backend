@@ -6,6 +6,7 @@ import com.github.adrianR_Souza.Barbearia.Exception.HorarioIndisponivelException
 import com.github.adrianR_Souza.Barbearia.Exception.RecursoNotFoundException;
 import com.github.adrianR_Souza.Barbearia.Model.*;
 import com.github.adrianR_Souza.Barbearia.Repository.AgendamentoRepository;
+import com.github.adrianR_Souza.Barbearia.Repository.BloqueioAgendaRepository;
 import com.github.adrianR_Souza.Barbearia.Repository.ServicoRepository;
 import com.github.adrianR_Souza.Barbearia.Repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
@@ -32,15 +33,17 @@ public class AgendamentoService {
     private final ServicoRepository servicoRepository;
     private final HorarioFuncionamentoConfig horarioFuncionamentoConfig;
     private final EmailService emailService;
+    private final BloqueioAgendaRepository bloqueioAgendaRepository;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository, UsuarioRepository usuarioRepository,
                                ServicoRepository servicoRepository, HorarioFuncionamentoConfig horarioFuncionamentoConfig,
-                               EmailService emailService) {
+                               EmailService emailService, BloqueioAgendaRepository bloqueioAgendaRepository) {
         this.agendamentoRepository = agendamentoRepository;
         this.servicoRepository = servicoRepository;
         this.usuarioRepository = usuarioRepository;
         this.horarioFuncionamentoConfig = horarioFuncionamentoConfig;
         this.emailService = emailService;
+        this.bloqueioAgendaRepository = bloqueioAgendaRepository;
     }
 
     private boolean colide(LocalDateTime inicioA, LocalDateTime fimA, LocalDateTime inicioB, LocalDateTime fimB){
@@ -58,6 +61,14 @@ public class AgendamentoService {
                 .toList();
     }
 
+    private List<BloqueioAgendaEntity> buscarBloqueiosDoDia(Long barbeiroId, LocalDate data) {
+        LocalDateTime dataInicio = data.atStartOfDay();
+        LocalDateTime dataFim = dataInicio.plusDays(1);
+
+        return bloqueioAgendaRepository.findByBarbeiro_IdAndDataHoraInicioLessThanAndDataHoraFimGreaterThan(
+                barbeiroId, dataFim, dataInicio);
+    }
+
     public AgendamentoEntity criar(AgendamentoEntity agendamento){
         LocalDateTime fim = agendamento.getDataHoraInicio().plusMinutes(agendamento.getServico().getDuracaoServico()) ;
         agendamento.setDataHoraFim(fim);
@@ -70,6 +81,14 @@ public class AgendamentoService {
                 throw new HorarioIndisponivelException("Esse horário já está ocupado para esse barbeiro");
             }
         }
+
+        List<BloqueioAgendaEntity> bloqueiosDoDia = buscarBloqueiosDoDia(id_barbeiro, agendamento.getDataHoraInicio().toLocalDate());
+        for (BloqueioAgendaEntity bloqueio : bloqueiosDoDia) {
+            if (colide(bloqueio.getDataHoraInicio(), bloqueio.getDataHoraFim(), agendamento.getDataHoraInicio(), agendamento.getDataHoraFim())) {
+                throw new HorarioIndisponivelException("O barbeiro fechou a agenda nesse período.");
+            }
+        }
+
         agendamento.setStatus(StatusAgendamento.PENDENTE);
         return agendamentoRepository.save(agendamento);
     }
@@ -88,6 +107,7 @@ public class AgendamentoService {
         Horario horario = horarioOpt.get();
 
         List<AgendamentoEntity> agendaDoDia = buscarAgendaDoDia(barbeiroId, data);
+        List<BloqueioAgendaEntity> bloqueiosDoDia = buscarBloqueiosDoDia(barbeiroId, data);
 
         LocalDateTime abertura = LocalDateTime.of(data, horario.abertura());
         LocalDateTime fechamento = LocalDateTime.of(data, horario.fechamento());
@@ -105,10 +125,12 @@ public class AgendamentoService {
 
             final LocalDateTime candidatoInicio = candidato;
             final LocalDateTime candidatoFim = candidato.plusMinutes(servico.getDuracaoServico());
-            boolean colideComAlgum = agendaDoDia.stream()
+            boolean colideComAgendamento = agendaDoDia.stream()
                     .anyMatch(a -> colide(a.getDataHoraInicio(), a.getDataHoraFim(), candidatoInicio, candidatoFim));
+            boolean colideComBloqueio = bloqueiosDoDia.stream()
+                    .anyMatch(b -> colide(b.getDataHoraInicio(), b.getDataHoraFim(), candidatoInicio, candidatoFim));
 
-            if (!colideComAlgum) {
+            if (!colideComAgendamento && !colideComBloqueio) {
                 disponiveis.add(candidatoInicio.toLocalTime().format(FORMATO_HORA));
             }
         }
@@ -255,5 +277,46 @@ public class AgendamentoService {
                 .toList();
 
         return new RelatorioServicosResponse(inicio, fim, concluidos.size(), valorTotal, porServico, porBarbeiro);
+    }
+
+    public BloqueioAgendaEntity criarBloqueio(BloqueioAgendaRequest request, String emailLogado) {
+        if (!request.getDataHoraInicio().isBefore(request.getDataHoraFim())) {
+            throw new HorarioIndisponivelException("A data/hora de início precisa ser antes da data/hora de fim.");
+        }
+
+        UsuarioEntity barbeiro = buscarUsuarioLogado(emailLogado);
+        boolean atuaComoBarbeiro = barbeiro.getRole() == Role.ROLE_BARBEIRO
+                || barbeiro.getRole() == Role.ROLE_MASTER
+                || barbeiro.isAtendeComoBarbeiro();
+        if (!atuaComoBarbeiro) {
+            throw new AcessoNegadoException("Só quem atende como barbeiro pode fechar a própria agenda.");
+        }
+
+        BloqueioAgendaEntity bloqueio = new BloqueioAgendaEntity();
+        bloqueio.setBarbeiro(barbeiro);
+        bloqueio.setDataHoraInicio(request.getDataHoraInicio());
+        bloqueio.setDataHoraFim(request.getDataHoraFim());
+        bloqueio.setMotivo(request.getMotivo());
+
+        return bloqueioAgendaRepository.save(bloqueio);
+    }
+
+    public List<BloqueioAgendaEntity> listarMeusBloqueios(String emailLogado) {
+        UsuarioEntity barbeiro = buscarUsuarioLogado(emailLogado);
+        return bloqueioAgendaRepository.findByBarbeiro_IdOrderByDataHoraInicio(barbeiro.getId());
+    }
+
+    public void removerBloqueio(Long id, String emailLogado) {
+        BloqueioAgendaEntity bloqueio = bloqueioAgendaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNotFoundException("Bloqueio não encontrado"));
+
+        UsuarioEntity usuarioLogado = buscarUsuarioLogado(emailLogado);
+        boolean dono = bloqueio.getBarbeiro().getId().equals(usuarioLogado.getId());
+
+        if (!dono && usuarioLogado.getRole() != Role.ROLE_MASTER) {
+            throw new AcessoNegadoException("Você não tem permissão pra remover esse bloqueio.");
+        }
+
+        bloqueioAgendaRepository.delete(bloqueio);
     }
 }

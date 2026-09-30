@@ -3,13 +3,17 @@ package com.github.adrianR_Souza.Barbearia.Service;
 import com.github.adrianR_Souza.Barbearia.Config.HorarioFuncionamentoConfig;
 import com.github.adrianR_Souza.Barbearia.Exception.AcessoNegadoException;
 import com.github.adrianR_Souza.Barbearia.Exception.RecursoNotFoundException;
+import com.github.adrianR_Souza.Barbearia.Exception.HorarioIndisponivelException;
 import com.github.adrianR_Souza.Barbearia.Model.AgendamentoEntity;
+import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaEntity;
+import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaRequest;
 import com.github.adrianR_Souza.Barbearia.Model.Horario;
 import com.github.adrianR_Souza.Barbearia.Model.Role;
 import com.github.adrianR_Souza.Barbearia.Model.ServicoEntity;
 import com.github.adrianR_Souza.Barbearia.Model.StatusAgendamento;
 import com.github.adrianR_Souza.Barbearia.Model.UsuarioEntity;
 import com.github.adrianR_Souza.Barbearia.Repository.AgendamentoRepository;
+import com.github.adrianR_Souza.Barbearia.Repository.BloqueioAgendaRepository;
 import com.github.adrianR_Souza.Barbearia.Repository.ServicoRepository;
 import com.github.adrianR_Souza.Barbearia.Repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +38,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +63,9 @@ class AgendamentoServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private BloqueioAgendaRepository bloqueioAgendaRepository;
+
     private AgendamentoService service;
 
     private ServicoEntity servicoCorte;
@@ -72,7 +81,9 @@ class AgendamentoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AgendamentoService(agendamentoRepository, usuarioRepository, servicoRepository, horarioFuncionamentoConfig, emailService);
+        service = new AgendamentoService(agendamentoRepository, usuarioRepository, servicoRepository, horarioFuncionamentoConfig, emailService, bloqueioAgendaRepository);
+        lenient().when(bloqueioAgendaRepository.findByBarbeiro_IdAndDataHoraInicioLessThanAndDataHoraFimGreaterThan(any(), any(), any()))
+                .thenReturn(List.of());
 
         servicoCorte = new ServicoEntity();
         servicoCorte.setId(1L);
@@ -336,5 +347,105 @@ class AgendamentoServiceTest {
         assertThat(relatorio.getValorTotal()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(relatorio.getPorServico()).isEmpty();
         assertThat(relatorio.getPorBarbeiro()).isEmpty();
+    }
+
+    @Test
+    void listarHorariosDisponiveis_comBloqueioExistente_removeOHorarioQueColide() {
+        when(usuarioRepository.existsById(9L)).thenReturn(true);
+        when(servicoRepository.findById(1L)).thenReturn(Optional.of(servicoCorte));
+        when(horarioFuncionamentoConfig.getHorario(TERCA.getDayOfWeek()))
+                .thenReturn(Optional.of(new Horario(LocalTime.of(8, 0), LocalTime.of(9, 0))));
+        when(agendamentoRepository.findByBarbeiro_IdAndDataHoraInicioBetween(anyLong(), any(), any()))
+                .thenReturn(List.of());
+
+        BloqueioAgendaEntity bloqueio = new BloqueioAgendaEntity();
+        bloqueio.setBarbeiro(barbeiro);
+        bloqueio.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(8, 30)));
+        bloqueio.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(9, 0)));
+
+        when(bloqueioAgendaRepository.findByBarbeiro_IdAndDataHoraInicioLessThanAndDataHoraFimGreaterThan(eq(9L), any(), any()))
+                .thenReturn(List.of(bloqueio));
+
+        List<String> resultado = service.listarHorariosDisponiveis(9L, 1L, TERCA);
+
+        assertThat(resultado).containsExactly("08:00");
+    }
+
+    @Test
+    void criarBloqueio_barbeiroValido_salvaComSucesso() {
+        when(usuarioRepository.findByEmail("barbeiro@example.com")).thenReturn(Optional.of(barbeiro));
+
+        BloqueioAgendaRequest request = new BloqueioAgendaRequest();
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(8, 0)));
+        request.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
+        request.setMotivo("Férias");
+
+        BloqueioAgendaEntity salvo = new BloqueioAgendaEntity();
+        when(bloqueioAgendaRepository.save(any())).thenReturn(salvo);
+
+        BloqueioAgendaEntity resultado = service.criarBloqueio(request, "barbeiro@example.com");
+
+        assertThat(resultado).isSameAs(salvo);
+        verify(bloqueioAgendaRepository).save(argThat(b ->
+                b.getBarbeiro().equals(barbeiro)
+                        && b.getDataHoraInicio().equals(request.getDataHoraInicio())
+                        && b.getDataHoraFim().equals(request.getDataHoraFim())
+                        && b.getMotivo().equals("Férias")
+        ));
+    }
+
+    @Test
+    void criarBloqueio_quandoInicioNaoAntesDoFim_lancaHorarioIndisponivelException() {
+        BloqueioAgendaRequest request = new BloqueioAgendaRequest();
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
+        request.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(8, 0)));
+
+        assertThatThrownBy(() -> service.criarBloqueio(request, "barbeiro@example.com"))
+                .isInstanceOf(HorarioIndisponivelException.class);
+
+        verify(bloqueioAgendaRepository, never()).save(any());
+    }
+
+    @Test
+    void criarBloqueio_clienteComum_lancaAcessoNegadoException() {
+        when(usuarioRepository.findByEmail("cliente@example.com")).thenReturn(Optional.of(cliente));
+
+        BloqueioAgendaRequest request = new BloqueioAgendaRequest();
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(8, 0)));
+        request.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
+
+        assertThatThrownBy(() -> service.criarBloqueio(request, "cliente@example.com"))
+                .isInstanceOf(AcessoNegadoException.class);
+
+        verify(bloqueioAgendaRepository, never()).save(any());
+    }
+
+    @Test
+    void removerBloqueio_quandoEhDono_remove() {
+        BloqueioAgendaEntity bloqueio = new BloqueioAgendaEntity();
+        bloqueio.setId(700L);
+        bloqueio.setBarbeiro(barbeiro);
+
+        when(bloqueioAgendaRepository.findById(700L)).thenReturn(Optional.of(bloqueio));
+        when(usuarioRepository.findByEmail("barbeiro@example.com")).thenReturn(Optional.of(barbeiro));
+
+        service.removerBloqueio(700L, "barbeiro@example.com");
+
+        verify(bloqueioAgendaRepository).delete(bloqueio);
+    }
+
+    @Test
+    void removerBloqueio_quandoNaoEhDonoNemMaster_lancaAcessoNegadoException() {
+        BloqueioAgendaEntity bloqueio = new BloqueioAgendaEntity();
+        bloqueio.setId(700L);
+        bloqueio.setBarbeiro(barbeiro);
+
+        when(bloqueioAgendaRepository.findById(700L)).thenReturn(Optional.of(bloqueio));
+        when(usuarioRepository.findByEmail("outro.barbeiro@example.com")).thenReturn(Optional.of(outroBarbeiro));
+
+        assertThatThrownBy(() -> service.removerBloqueio(700L, "outro.barbeiro@example.com"))
+                .isInstanceOf(AcessoNegadoException.class);
+
+        verify(bloqueioAgendaRepository, never()).delete(any());
     }
 }

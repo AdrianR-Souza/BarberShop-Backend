@@ -3,6 +3,8 @@ package com.github.adrianR_Souza.Barbearia.Controller;
 import com.github.adrianR_Souza.Barbearia.Model.AgendamentoEntity;
 import com.github.adrianR_Souza.Barbearia.Model.AgendamentoRequest;
 import com.github.adrianR_Souza.Barbearia.Model.AgendamentoResumo;
+import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaEntity;
+import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaRequest;
 import com.github.adrianR_Souza.Barbearia.Model.MetodoPgto;
 import com.github.adrianR_Souza.Barbearia.Model.RelatorioServicosResponse;
 import com.github.adrianR_Souza.Barbearia.Service.AgendamentoService;
@@ -84,6 +86,23 @@ public class AgendaController {
     @PutMapping("/{id}/concluido")
     public AgendamentoEntity alterarStatusConcluido(@PathVariable Long id){
         return agendamentoService.altStatusConcluido(id, emailLogado());
+    }
+
+    @PostMapping("/bloqueios")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BloqueioAgendaEntity criarBloqueio(@Valid @RequestBody BloqueioAgendaRequest request) {
+        return agendamentoService.criarBloqueio(request, emailLogado());
+    }
+
+    @GetMapping("/bloqueios")
+    public List<BloqueioAgendaEntity> listarMeusBloqueios() {
+        return agendamentoService.listarMeusBloqueios(emailLogado());
+    }
+
+    @DeleteMapping("/bloqueios/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removerBloqueio(@PathVariable Long id) {
+        agendamentoService.removerBloqueio(id, emailLogado());
     }
 
     private String emailLogado() {
