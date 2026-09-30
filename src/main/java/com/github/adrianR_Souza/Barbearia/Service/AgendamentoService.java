@@ -284,12 +284,23 @@ public class AgendamentoService {
             throw new HorarioIndisponivelException("A data/hora de início precisa ser antes da data/hora de fim.");
         }
 
-        UsuarioEntity barbeiro = buscarUsuarioLogado(emailLogado);
+        UsuarioEntity usuarioLogado = buscarUsuarioLogado(emailLogado);
+
+        //MASTER pode escolher pra qual barbeiro e' o bloqueio; qualquer outra
+        //pessoa so fecha a propria agenda, mesmo que mande outro barbeiroId
+        UsuarioEntity barbeiro;
+        if (usuarioLogado.getRole() == Role.ROLE_MASTER && request.getBarbeiroId() != null) {
+            barbeiro = usuarioRepository.findById(request.getBarbeiroId())
+                    .orElseThrow(() -> new RecursoNotFoundException("Barbeiro não encontrado."));
+        } else {
+            barbeiro = usuarioLogado;
+        }
+
         boolean atuaComoBarbeiro = barbeiro.getRole() == Role.ROLE_BARBEIRO
                 || barbeiro.getRole() == Role.ROLE_MASTER
                 || barbeiro.isAtendeComoBarbeiro();
         if (!atuaComoBarbeiro) {
-            throw new AcessoNegadoException("Só quem atende como barbeiro pode fechar a própria agenda.");
+            throw new AcessoNegadoException("Esse usuário não atende como barbeiro.");
         }
 
         BloqueioAgendaEntity bloqueio = new BloqueioAgendaEntity();
@@ -301,9 +312,15 @@ public class AgendamentoService {
         return bloqueioAgendaRepository.save(bloqueio);
     }
 
-    public List<BloqueioAgendaEntity> listarMeusBloqueios(String emailLogado) {
-        UsuarioEntity barbeiro = buscarUsuarioLogado(emailLogado);
-        return bloqueioAgendaRepository.findByBarbeiro_IdOrderByDataHoraInicio(barbeiro.getId());
+    public List<BloqueioAgendaEntity> listarBloqueios(String emailLogado, Long barbeiroIdOpcional) {
+        UsuarioEntity usuarioLogado = buscarUsuarioLogado(emailLogado);
+
+        Long idAlvo = usuarioLogado.getId();
+        if (usuarioLogado.getRole() == Role.ROLE_MASTER && barbeiroIdOpcional != null) {
+            idAlvo = barbeiroIdOpcional;
+        }
+
+        return bloqueioAgendaRepository.findByBarbeiro_IdOrderByDataHoraInicio(idAlvo);
     }
 
     public void removerBloqueio(Long id, String emailLogado) {

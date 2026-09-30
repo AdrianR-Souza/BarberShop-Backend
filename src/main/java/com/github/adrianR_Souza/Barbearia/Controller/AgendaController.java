@@ -95,8 +95,8 @@ public class AgendaController {
     }
 
     @GetMapping("/bloqueios")
-    public List<BloqueioAgendaEntity> listarMeusBloqueios() {
-        return agendamentoService.listarMeusBloqueios(emailLogado());
+    public List<BloqueioAgendaEntity> listarBloqueios(@RequestParam(required = false) Long barbeiroId) {
+        return agendamentoService.listarBloqueios(emailLogado(), barbeiroId);
     }
 
     @DeleteMapping("/bloqueios/{id}")

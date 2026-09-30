@@ -395,6 +395,40 @@ class AgendamentoServiceTest {
     }
 
     @Test
+    void criarBloqueio_masterEscolhendoBarbeiro_criaParaOBarbeiroEscolhido() {
+        when(usuarioRepository.findByEmail("master@example.com")).thenReturn(Optional.of(master));
+        when(usuarioRepository.findById(9L)).thenReturn(Optional.of(barbeiro));
+
+        BloqueioAgendaRequest request = new BloqueioAgendaRequest();
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(8, 0)));
+        request.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
+        request.setBarbeiroId(9L);
+
+        when(bloqueioAgendaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        BloqueioAgendaEntity resultado = service.criarBloqueio(request, "master@example.com");
+
+        assertThat(resultado.getBarbeiro()).isEqualTo(barbeiro);
+    }
+
+    @Test
+    void criarBloqueio_naoMasterTentandoEscolherOutroBarbeiro_criaParaSiMesmoIgnorandoBarbeiroId() {
+        when(usuarioRepository.findByEmail("barbeiro@example.com")).thenReturn(Optional.of(barbeiro));
+
+        BloqueioAgendaRequest request = new BloqueioAgendaRequest();
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(8, 0)));
+        request.setDataHoraFim(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
+        request.setBarbeiroId(8L); // tenta apontar pro outroBarbeiro, deve ser ignorado
+
+        when(bloqueioAgendaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        BloqueioAgendaEntity resultado = service.criarBloqueio(request, "barbeiro@example.com");
+
+        assertThat(resultado.getBarbeiro()).isEqualTo(barbeiro);
+        verify(usuarioRepository, never()).findById(8L);
+    }
+
+    @Test
     void criarBloqueio_quandoInicioNaoAntesDoFim_lancaHorarioIndisponivelException() {
         BloqueioAgendaRequest request = new BloqueioAgendaRequest();
         request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(18, 0)));
