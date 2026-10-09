@@ -78,16 +78,6 @@ public class AgendaController {
         return agendamentoService.altStatusCancelar(id, emailLogado());
     }
 
-    @PutMapping("/{id}/confirmar")
-    public AgendamentoEntity alterarStatusConfirmar(@PathVariable Long id){
-        return agendamentoService.altStatusConfirmar(id, emailLogado());
-    }
-
-    @PutMapping("/{id}/concluido")
-    public AgendamentoEntity alterarStatusConcluido(@PathVariable Long id){
-        return agendamentoService.altStatusConcluido(id, emailLogado());
-    }
-
     @PostMapping("/bloqueios")
     @ResponseStatus(HttpStatus.CREATED)
     public BloqueioAgendaEntity criarBloqueio(@Valid @RequestBody BloqueioAgendaRequest request) {

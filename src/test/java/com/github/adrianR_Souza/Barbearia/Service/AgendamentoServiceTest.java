@@ -5,6 +5,7 @@ import com.github.adrianR_Souza.Barbearia.Exception.AcessoNegadoException;
 import com.github.adrianR_Souza.Barbearia.Exception.RecursoNotFoundException;
 import com.github.adrianR_Souza.Barbearia.Exception.HorarioIndisponivelException;
 import com.github.adrianR_Souza.Barbearia.Model.AgendamentoEntity;
+import com.github.adrianR_Souza.Barbearia.Model.AgendamentoRequest;
 import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaEntity;
 import com.github.adrianR_Souza.Barbearia.Model.BloqueioAgendaRequest;
 import com.github.adrianR_Souza.Barbearia.Model.Horario;
@@ -247,28 +248,6 @@ class AgendamentoServiceTest {
     }
 
     @Test
-    void altStatusConfirmar_quandoQuemChamaEOCliente_lancaAcessoNegadoException() {
-        when(agendamentoRepository.findById(500L)).thenReturn(Optional.of(agendamento));
-        when(usuarioRepository.findByEmail("cliente@example.com")).thenReturn(Optional.of(cliente));
-
-        assertThatThrownBy(() -> service.altStatusConfirmar(500L, "cliente@example.com"))
-                .isInstanceOf(AcessoNegadoException.class);
-
-        verify(agendamentoRepository, never()).save(any());
-    }
-
-    @Test
-    void altStatusConfirmar_quandoQuemChamaEOBarbeiroDoAgendamento_permite() {
-        when(agendamentoRepository.findById(500L)).thenReturn(Optional.of(agendamento));
-        when(usuarioRepository.findByEmail("barbeiro@example.com")).thenReturn(Optional.of(barbeiro));
-        when(agendamentoRepository.save(agendamento)).thenReturn(agendamento);
-
-        AgendamentoEntity resultado = service.altStatusConfirmar(500L, "barbeiro@example.com");
-
-        assertThat(resultado.getStatus()).isEqualTo(StatusAgendamento.CONFIRMADO);
-    }
-
-    @Test
     void listarMeusAgendamentosCliente_devolveSoOsDoClienteLogado() {
         when(usuarioRepository.findByEmail("cliente@example.com")).thenReturn(Optional.of(cliente));
         when(agendamentoRepository.findByCliente_Id(100L)).thenReturn(List.of(agendamento));
@@ -301,19 +280,22 @@ class AgendamentoServiceTest {
         AgendamentoEntity corte1 = new AgendamentoEntity();
         corte1.setServico(servicoCorte);
         corte1.setBarbeiro(barbeiro);
-        corte1.setStatus(StatusAgendamento.CONCLUIDO);
+        corte1.setStatus(StatusAgendamento.CONFIRMADO);
+        corte1.setDataHoraInicio(LocalDateTime.now().minusDays(1));
 
         AgendamentoEntity corte2 = new AgendamentoEntity();
         corte2.setServico(servicoCorte);
         corte2.setBarbeiro(outroBarbeiro);
-        corte2.setStatus(StatusAgendamento.CONCLUIDO);
+        corte2.setStatus(StatusAgendamento.CONFIRMADO);
+        corte2.setDataHoraInicio(LocalDateTime.now().minusDays(1));
 
         AgendamentoEntity barba1 = new AgendamentoEntity();
         barba1.setServico(servicoBarba);
         barba1.setBarbeiro(barbeiro);
-        barba1.setStatus(StatusAgendamento.CONCLUIDO);
+        barba1.setStatus(StatusAgendamento.CONFIRMADO);
+        barba1.setDataHoraInicio(LocalDateTime.now().minusDays(1));
 
-        when(agendamentoRepository.findByStatusAndDataHoraInicioBetween(eq(StatusAgendamento.CONCLUIDO), any(), any()))
+        when(agendamentoRepository.findByStatusInAndDataHoraInicioBetween(any(), any(), any()))
                 .thenReturn(List.of(corte1, corte2, barba1));
 
         RelatorioServicosResponse relatorio = service.gerarRelatorioServicos(TERCA, TERCA.plusDays(6));
@@ -338,7 +320,7 @@ class AgendamentoServiceTest {
 
     @Test
     void gerarRelatorioServicos_semAgendamentosNoPeriodo_devolveZerado() {
-        when(agendamentoRepository.findByStatusAndDataHoraInicioBetween(eq(StatusAgendamento.CONCLUIDO), any(), any()))
+        when(agendamentoRepository.findByStatusInAndDataHoraInicioBetween(any(), any(), any()))
                 .thenReturn(List.of());
 
         RelatorioServicosResponse relatorio = service.gerarRelatorioServicos(TERCA, TERCA);
@@ -481,5 +463,45 @@ class AgendamentoServiceTest {
                 .isInstanceOf(AcessoNegadoException.class);
 
         verify(bloqueioAgendaRepository, never()).delete(any());
+    }
+
+    @Test
+    void criarAgendamento_novoAgendamentoJaNasceConfirmadoENotificaBarbeiroECliente() {
+        when(usuarioRepository.findByEmail("cliente@example.com")).thenReturn(Optional.of(cliente));
+        when(usuarioRepository.findById(9L)).thenReturn(Optional.of(barbeiro));
+        when(servicoRepository.findById(1L)).thenReturn(Optional.of(servicoCorte));
+        when(agendamentoRepository.findByBarbeiro_IdAndDataHoraInicioBetween(anyLong(), any(), any()))
+                .thenReturn(List.of());
+        when(agendamentoRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AgendamentoRequest request = new AgendamentoRequest();
+        request.setBarbeiroId(9L);
+        request.setServicoId(1L);
+        request.setDataHoraInicio(LocalDateTime.of(TERCA, LocalTime.of(10, 0)));
+
+        AgendamentoEntity resultado = service.criarAgendamento(request, "cliente@example.com");
+
+        assertThat(resultado.getStatus()).isEqualTo(StatusAgendamento.CONFIRMADO);
+        verify(emailService).notificarNovoAgendamento(resultado);
+        verify(emailService).notificarAgendamentoConfirmado(resultado);
+    }
+
+    @Test
+    void gerarRelatorioServicos_ignoraAgendamentoFuturoAindaNaoRealizado() {
+        servicoCorte.setPrecoServico(new BigDecimal("40.00"));
+
+        AgendamentoEntity futuro = new AgendamentoEntity();
+        futuro.setServico(servicoCorte);
+        futuro.setBarbeiro(barbeiro);
+        futuro.setStatus(StatusAgendamento.CONFIRMADO);
+        futuro.setDataHoraInicio(LocalDateTime.now().plusDays(2));
+
+        when(agendamentoRepository.findByStatusInAndDataHoraInicioBetween(any(), any(), any()))
+                .thenReturn(List.of(futuro));
+
+        RelatorioServicosResponse relatorio = service.gerarRelatorioServicos(TERCA, TERCA);
+
+        assertThat(relatorio.getTotalConcluidos()).isZero();
+        assertThat(relatorio.getValorTotal()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

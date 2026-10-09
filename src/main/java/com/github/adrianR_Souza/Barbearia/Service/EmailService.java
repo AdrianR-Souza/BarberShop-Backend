@@ -53,7 +53,7 @@ public class EmailService {
                 <b>Serviço:</b> %s<br>
                 <b>Data e hora:</b> %s<br>
                 <b>Marcado por:</b> %s (telefone: %s)</p>
-                <p><a href="%s/painel-barbeiro">Acesse o painel do barbeiro pra confirmar</a>.</p>
+                <p><a href="%s/painel-barbeiro">Acesse o painel do barbeiro pra ver sua agenda</a>.</p>
                 """.formatted(
                 nomeAtendido,
                 agendamento.getServico().getNomeServico(),

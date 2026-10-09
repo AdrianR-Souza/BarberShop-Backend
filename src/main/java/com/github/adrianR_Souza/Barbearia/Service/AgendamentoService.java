@@ -89,7 +89,7 @@ public class AgendamentoService {
             }
         }
 
-        agendamento.setStatus(StatusAgendamento.PENDENTE);
+        agendamento.setStatus(StatusAgendamento.CONFIRMADO);
         return agendamentoRepository.save(agendamento);
     }
 
@@ -158,6 +158,7 @@ public class AgendamentoService {
 
         AgendamentoEntity agendamentoCriado = criar(agendamento);
         emailService.notificarNovoAgendamento(agendamentoCriado);
+        emailService.notificarAgendamentoConfirmado(agendamentoCriado);
         return agendamentoCriado;
     }
     public AgendamentoEntity buscarPorId(Long id) {
@@ -225,30 +226,18 @@ public class AgendamentoService {
         return agendamentoRepository.save(agendamentos);
     }
 
-    public AgendamentoEntity altStatusConfirmar(Long id, String emailLogado) {
-        AgendamentoEntity agendamentos = buscarPorId(id);
-        validarPermissao(agendamentos, emailLogado, false);
-
-        agendamentos.setStatus(StatusAgendamento.CONFIRMADO);
-        AgendamentoEntity agendamentoConfirmado = agendamentoRepository.save(agendamentos);
-        emailService.notificarAgendamentoConfirmado(agendamentoConfirmado);
-        return agendamentoConfirmado;
-    }
-
-    public AgendamentoEntity altStatusConcluido(Long id, String emailLogado) {
-        AgendamentoEntity agendamentos = buscarPorId(id);
-        validarPermissao(agendamentos, emailLogado, false);
-
-        agendamentos.setStatus(StatusAgendamento.CONCLUIDO);
-        return agendamentoRepository.save(agendamentos);
-    }
-
     public RelatorioServicosResponse gerarRelatorioServicos(LocalDate inicio, LocalDate fim) {
         LocalDateTime inicioDateTime = inicio.atStartOfDay();
         LocalDateTime fimDateTime = fim.plusDays(1).atStartOfDay();
 
+        LocalDateTime agora = LocalDateTime.now();
+
         List<AgendamentoEntity> concluidos = agendamentoRepository
-                .findByStatusAndDataHoraInicioBetween(StatusAgendamento.CONCLUIDO, inicioDateTime, fimDateTime);
+                .findByStatusInAndDataHoraInicioBetween(
+                        List.of(StatusAgendamento.CONFIRMADO, StatusAgendamento.CONCLUIDO), inicioDateTime, fimDateTime)
+                .stream()
+                .filter(a -> a.getDataHoraInicio().isBefore(agora))
+                .toList();
 
         BigDecimal valorTotal = concluidos.stream()
                 .map(a -> a.getServico().getPrecoServico())
