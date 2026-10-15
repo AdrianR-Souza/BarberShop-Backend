@@ -1,6 +1,5 @@
 package com.github.adrianR_Souza.Barbearia.Model;
 
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
@@ -14,9 +13,6 @@ public class AgendamentoRequest {
     @Size(min = 2, max = 100)
     private String nomeTerceiro;
 
-    @Positive
-    private Integer idadeTerceiro;
-
     public Long getBarbeiroId() { return barbeiroId; }
     public void setBarbeiroId(Long barbeiroId) { this.barbeiroId = barbeiroId; }
     public Long getServicoId() { return servicoId; }
@@ -25,6 +21,4 @@ public class AgendamentoRequest {
     public void setDataHoraInicio(LocalDateTime dataHoraInicio) { this.dataHoraInicio = dataHoraInicio; }
     public String getNomeTerceiro() { return nomeTerceiro; }
     public void setNomeTerceiro(String nomeTerceiro) { this.nomeTerceiro = nomeTerceiro; }
-    public Integer getIdadeTerceiro() { return idadeTerceiro; }
-    public void setIdadeTerceiro(Integer idadeTerceiro) { this.idadeTerceiro = idadeTerceiro; }
 }

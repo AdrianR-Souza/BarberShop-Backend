@@ -41,6 +41,4 @@ public class AgendamentoEntity {
 
     //preenchidos só quando quem agenda marca horário pra outra pessoa
     private String nomeTerceiro;
-
-    private Integer idadeTerceiro;
 }
