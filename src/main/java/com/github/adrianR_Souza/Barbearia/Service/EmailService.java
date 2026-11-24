@@ -97,6 +97,8 @@ public class EmailService {
             return;
         }
 
+        log.info("Enviando e-mail '{}' pro agendamento {}.", assunto, agendamentoId);
+
         try {
             Map<String, Object> payload = Map.of(
                     "sender", Map.of("name", remetenteNome, "email", remetenteEmail),
@@ -118,6 +120,8 @@ public class EmailService {
             if (response.statusCode() >= 300) {
                 log.warn("Falha ao enviar e-mail via Brevo (status {}) pro agendamento {}: {}",
                         response.statusCode(), agendamentoId, response.body());
+            } else {
+                log.info("E-mail do agendamento {} aceito pelo Brevo (status {}).", agendamentoId, response.statusCode());
             }
         } catch (Exception e) {
             log.warn("Não foi possível enviar o e-mail de notificação do agendamento {}: {}", agendamentoId, e.getMessage());
